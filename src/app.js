@@ -2,20 +2,23 @@ import express from "express"
 import dotenv from "dotenv"
 import helmet from "helmet"
 import morgan from "morgan"
-import initializeConnection from "./configs/connection.js"
-import middlewareUtils from "./utils/middleware.js"
-import authRoutes from "./api/auth/routes.js"
+import { rateLimit } from 'express-rate-limit'
+import ConnectionConfig from "./configs/connection.js"
+import MiddlewareUtils from "./utils/middleware.js"
+import AuthRoutes from "./api/auth/routes.js"
+import UserRoutes from "./api/users/routes.js"
 
 dotenv.config()
 const app = express()
 
 // Initialize connection/s
-await initializeConnection().catch(err => { console.log(err) })
+await ConnectionConfig.initialize().catch(err => { console.log(err) })
 
-app.use(middlewareUtils.requestIdMiddleware)
+app.use(MiddlewareUtils.requestIdMiddleware)
 app.use(helmet({ contentSecurityPolicy: true }))
-app.use(middlewareUtils.cors)
-app.use(middlewareUtils.limiter)
+app.use(MiddlewareUtils.cors)
+// app.use(MiddlewareUtils.limiter)
+app.use(rateLimit(MiddlewareUtils.limiter))
 app.use(express.urlencoded({ extended: true }))
 app.use(express.json())
 
@@ -25,13 +28,13 @@ if (process.env.NODE_ENV === 'development') {
 }
 
 // Mount routes
-app.use('/api/v1/auth', authRoutes) // Auth Routes
-// app.use('/api/v1/users', UserRoutes) // User Routes
+app.use('/api/v1/auth', AuthRoutes) // Auth Routes
+app.use('/api/v1/users', UserRoutes) // User Routes
 
 // Handle 404 (Not Found)
-app.use(middlewareUtils.notFound)
+app.use(MiddlewareUtils.notFound)
 
 // Global error handling middleware
-app.use(middlewareUtils.errorHandler)
+app.use(MiddlewareUtils.errorHandler)
 
 export default app

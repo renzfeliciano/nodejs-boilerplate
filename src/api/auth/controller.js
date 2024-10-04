@@ -1,28 +1,20 @@
-import authService from "./service.js"
+import AuthService from "./service.js"
 
 class AuthController {
-    login = async (req, res, next) => {
-        console.log('login controller trigger')
-        const result = await authService.login()
-        return result
+    login = async (req, res) => {
+        const result = await AuthService.login(req)
+        res.status(200).json(result)
     }
 
-    register = (req, res, next) => {
-
+    register = async (req, res) => {
+        const result = await AuthService.register(req)
+        res.status(200).json(result)
     }
 
-    logout = (req, res, next) => {
-
-    }
-
-    token = (req, res, next) => {
-
-    }
-
-    refreshToken = (req, res, next) => {
-
+    logout = async (req, res) => {
+        const result = await AuthService.logout(req)
+        res.status(200).json(result)
     }
 }
 
-const authController = new AuthController()
-export default authController
+export default new AuthController()

@@ -21,23 +21,7 @@ class DatabaseConfig {
             console.error("Error connecting to MongoDB:", error.message)
             throw new Error("Failed to connect to MongoDB")
         }
-
-        this.handleAppTermination()
-    }
-
-    handleAppTermination() {
-        process.on("SIGINT", async () => {
-            try {
-                await mongoose.connection.close()
-                console.log("MongoDB connection closed due to app termination")
-                process.exit(0)
-            } catch (error) {
-                console.error("Error closing MongoDB connection:", error.message)
-                process.exit(1)
-            }
-        })
     }
 }
 
-const databaseConfig = new DatabaseConfig()
-export default databaseConfig
+export default new DatabaseConfig()

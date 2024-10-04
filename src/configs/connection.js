@@ -1,16 +1,18 @@
 import databaseConfig from './database.js'
-import redisUtils from '../utils/redis.js'
+import RedisUtils from './redis.js'
 
-async function initializeConnection() {
-    try {
-        // Connect to MongoDB
-        await databaseConfig.connect()
-
-        // Connect to Redis client
-        await redisUtils.connect()
-    } catch (err) {
-        console.error('Error initializing connections:', err)
+class ConnectionConfig {
+    initialize = async () => {
+        try {
+            // Connect to MongoDB
+            await databaseConfig.connect()
+    
+            // Connect to Redis client
+            await RedisUtils.connect()
+        } catch (err) {
+            console.error('Error initializing connections:', err)
+        }
     }
 }
 
-export default initializeConnection
+export default new ConnectionConfig()

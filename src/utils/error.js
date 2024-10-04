@@ -1,8 +1,8 @@
 class AppError extends Error {
     constructor(
-        code = 'UNKNOWN_ERROR',
+        code = 'INTERNAL_SERVER_ERROR',
         status = 500,
-        message = 'An unexpected error occurred.'
+        message = 'An unexpected error occurred. Please try again later.'
     ) {
         super(message)
         this.code = code
@@ -12,4 +12,4 @@ class AppError extends Error {
     }
 }
 
-export default new AppError()
+export default AppError

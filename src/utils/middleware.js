@@ -1,7 +1,8 @@
-import { v4 as uuidv4 } from 'uuid'
-import { rateLimit } from 'express-rate-limit'
-import AppError from './error.js'
-import CONSTANTS from '../shared/constants.js'
+import { v4 as uuidv4 } from "uuid"
+import JwtUtils from "./jwt.js"
+import RedisClient from "../configs/redis.js"
+import AppError from "./error.js"
+import CONSTANTS from "../shared/constants.js"
 
 class MiddlewareUtils {
     requestIdMiddleware(req, res, next) {
@@ -20,54 +21,60 @@ class MiddlewareUtils {
             // Continue to next middleware or route handler
             next()
         } else {
-            next(new AppError(
-                'FORBIDDEN_ACCESS',
-                403,
-                'Access denied.'
-            ))
+            next(new AppError('FORBIDDEN_ACCESS', 403, 'Access denied.'))
         }
     }
 
-    limiter = rateLimit({
+    limiter = {
         windowMs: 15 * 60 * 1000, // 15 minutes
         max: 100, // limit each IP to 100 requests per windowMs
-        keyGenerator: (req) => req.ip, // Use the custom key generator
         handler: (req, res, next) => {
-            next(new AppError(
-                'RATE_LIMIT_EXCEEDED',
-                429,
-                `Too many requests on IP: ${req.ip}, please try again later.`
-            ))
-        }
-    })
+            next(new AppError('RATE_LIMIT_EXCEEDED', 429, `Too many requests, please try again later.`))
+        },
+    }
 
     notFound(req, res, next) {
-        next(new AppError(
-            "NOT_FOUND",
-            404,
-            'Resource not found.'
-        ))
+        next(new AppError("NOT_FOUND", 404, 'Resource not found.'))
     }
 
     validateRequest(schema) {
         return (req, res, next) => {
-            const result = schema.validate(req.body)
-
+            const result = schema.validate(req.body, { abortEarly: false })
+            
             if (result.error) {
-                next(new AppError(
-                    "VALIDATION_ERROR",
-                    400,
-                    result.error.details.message
-                ))
+                console.log(result.error)
+                const hasUnknownFieldErrors = result.error.details.some(detail => detail.type === 'object.unknown')
+                if (hasUnknownFieldErrors) {
+                    next(new AppError("VALIDATION_ERROR", 400, "Request contains unknown field/s."))
+                } else {
+                    const firstError = result.error.details[0]
+                    next(new AppError("VALIDATION_ERROR", 400, firstError.message))
+                }
+            } else {
+                if (!req.value) {
+                    req.value = {}
+                }
+                req.value['body'] = result.value
+                next()
             }
-
-            if (!req.value) {
-                req.value = {}
-            }
-
-            req.value['body'] = result.value
-            next()
         }
+    }
+
+    authenticateToken = async (req, res, next) => {
+        const authHeader = req.headers['authorization']
+        const token = authHeader && authHeader.split(' ')[1]
+        
+        if (!token) {
+            return next(new AppError("AUTHENTICATION_ERROR", 401, "Authorization token is missing or invalid."))
+        }
+
+        // Check if the token is blacklisted
+        const isBlacklisted = await RedisClient.getCache(`blacklist:${token}`)
+        if (isBlacklisted) {
+            return next(new AppError("AUTHORIZATION_ERROR", 403, "Token has been invalidated. Please login."))
+        }
+    
+        return JwtUtils.verifyToken(req, next, token)
     }
 
     errorHandler = (err, req, res, next) => {
@@ -80,8 +87,8 @@ class MiddlewareUtils {
                     message: err?.message,
                     type: err?.type,
                     status: statusCode,
-                    timestamp: new Date().toISOString(), 
-                    requestId: req.requestId 
+                    timestamp: new Date().toISOString(),
+                    requestId: req.requestId
                 },
             },
             meta: {
@@ -93,5 +100,4 @@ class MiddlewareUtils {
     }
 }
 
-const middlewareUtils = new MiddlewareUtils()
-export default middlewareUtils
+export default new MiddlewareUtils()
